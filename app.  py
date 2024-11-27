@@ -1,0 +1,44 @@
+import streamlit as st
+from moviepy.editor import VideoFileClip
+import os
+
+# Function to split video
+def split_video(input_video_path, output_folder, clip_duration):
+    os.makedirs(output_folder, exist_ok=True)
+    video = VideoFileClip(input_video_path)
+    video_duration = int(video.duration)
+    clips = []
+    for start_time in range(0, video_duration, clip_duration):
+        end_time = min(start_time + clip_duration, video_duration)
+        clip = video.subclip(start_time, end_time)
+        output_path = os.path.join(output_folder, f"clip_{start_time}.mp4")
+        clip.write_videofile(output_path, codec="libx264", audio_codec="aac")
+        clips.append(output_path)
+    return clips
+
+# Streamlit UI
+st.title("Video Splitter Tool")
+st.write("Upload a long video to split it into shorter clips.")
+
+uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mkv"])
+clip_duration = st.number_input("Clip duration (seconds)", min_value=5, max_value=300, value=30)
+
+if uploaded_file and st.button("Split Video"):
+    with st.spinner("Processing..."):
+        input_video_path = f"temp_video.mp4"
+        with open(input_video_path, "wb") as f:
+            f.write(uploaded_file.read())
+
+        output_folder = "output_clips"
+        clips = split_video(input_video_path, output_folder, clip_duration)
+        st.success("Video has been split into clips!")
+
+        # Provide download links
+        for clip_path in clips:
+            with open(clip_path, "rb") as f:
+                st.download_button(label=f"Download {os.path.basename(clip_path)}", data=f, file_name=os.path.basename(clip_path))
+
+        # Cleanup
+        os.remove(input_video_path)
+        for clip_path in clips:
+            os.remove(clip_path)
